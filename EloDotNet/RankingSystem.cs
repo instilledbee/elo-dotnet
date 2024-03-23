@@ -1,15 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using EloDotNet.Interfaces;
+using EloDotNet.Enums;
 
 namespace EloDotNet
 {
-    public class RankingSystem
+    /// <summary>
+    /// Default implementation of <see cref="IRankingSystem{TMatch, TPlayer}"/>, using <see cref="Match"/> to record matches, and <see cref="Player"/> to refer to participants.
+    /// </summary>
+    public class RankingSystem : IRankingSystem<Match, Player>
     {
-        private readonly ICollection<Player> _players;
-        private readonly ICollection<Match> _matches;
-        private readonly double _startingElo;
-        private readonly double _kFactor;
+        public ICollection<Player> Players { get; }
+        public ICollection<Match> Matches { get; }
+        public double StartingElo { get; }
+        public double KFactor { get; }
 
         private const double WINNER_SCORE = 1.0f;
         private const double DRAW_SCORE = 0.5f;
@@ -22,44 +27,44 @@ namespace EloDotNet
 
         public RankingSystem(double startingElo = 1000, double kFactor = 400)
         {
-            _players = new List<Player>();
-            _matches = new List<Match>();
+            Players = new List<Player>();
+            Matches = new List<Match>();
 
-            _startingElo = startingElo;
-            _kFactor = kFactor;
+            StartingElo = startingElo;
+            KFactor = kFactor;
             _eloCache = new Dictionary<(Guid, int), double>();
         }
 
         public void RegisterPlayer(Player player)
         {
-            _players.Add(player);
-            _eloCache[(player.Id, 0)] = _startingElo;
+            Players.Add(player);
+            _eloCache[(player.Id, 0)] = StartingElo;
         }
 
         public void RecordMatch(Player playerA, Player playerB, MatchWinner winner = MatchWinner.Draw)
         {
-            if (!_players.Any(p => p.Id == playerA.Id))
+            if (!Players.Any(p => p.Id == playerA.Id))
                 throw new ArgumentException($"Winning player {playerA.Id} is not in this RankingSystem.");
 
-            if (!_players.Any(p => p.Id == playerB.Id))
+            if (!Players.Any(p => p.Id == playerB.Id))
                 throw new ArgumentException($"Losing player {playerB.Id} is not in this RankingSystem.");
 
-            _matches.Add(new Match(playerA, playerB, winner));
+            Matches.Add(new Match(playerA, playerB, winner));
         }
 
         public double CalculateElo(Player player)
         {
-            if (!_players.Any(p => p.Id == player.Id))
+            if (!Players.Any(p => p.Id == player.Id))
                 throw new ArgumentException($"Player {player.Id} is not in this RankingSystem.");
 
             // no matches played = player only has starting Elo
-            if (!_matches.Any(m => m.Winner?.Id == player.Id || m.Loser?.Id == player.Id))
-                return _startingElo;
+            if (!Matches.Any(m => m.Winner?.Id == player.Id || m.Loser?.Id == player.Id))
+                return StartingElo;
 
-            if (_eloCache.ContainsKey((player.Id, _matches.Count)))
-                return _eloCache[(player.Id, _matches.Count)];
+            if (_eloCache.ContainsKey((player.Id, Matches.Count)))
+                return _eloCache[(player.Id, Matches.Count)];
 
-            var orderedMatches = _matches.OrderBy(m => m.RecordTime);
+            var orderedMatches = Matches.OrderBy(m => m.RecordIndex);
             int matchIndex = 0;
 
             // Simulate each match in the history
@@ -92,23 +97,23 @@ namespace EloDotNet
                 switch (match.Result)
                 {
                     case MatchWinner.PlayerA:
-                        eloChangeA = _kFactor * (WINNER_SCORE - expectedScoreA);
-                        eloChangeB = _kFactor * (LOSER_SCORE - expectedScoreB);
+                        eloChangeA = KFactor * (WINNER_SCORE - expectedScoreA);
+                        eloChangeB = KFactor * (LOSER_SCORE - expectedScoreB);
                         break;
 
                     case MatchWinner.PlayerB:
-                        eloChangeA = _kFactor * (LOSER_SCORE - expectedScoreA);
-                        eloChangeB = _kFactor * (WINNER_SCORE - expectedScoreB);
+                        eloChangeA = KFactor * (LOSER_SCORE - expectedScoreA);
+                        eloChangeB = KFactor * (WINNER_SCORE - expectedScoreB);
                         break;
 
                     case MatchWinner.Draw:
-                        eloChangeA = _kFactor * (DRAW_SCORE - expectedScoreA);
-                        eloChangeB = _kFactor * (DRAW_SCORE - expectedScoreB);
+                        eloChangeA = KFactor * (DRAW_SCORE - expectedScoreA);
+                        eloChangeB = KFactor * (DRAW_SCORE - expectedScoreB);
                         break;
                 }
 
                 // Calculate each player's Elo rating for the current match index
-                foreach (var p in _players)
+                foreach (var p in Players)
                 {
                     // by default, if the player didn't participate in the current match, 
                     // just carry over their previous Elo rating
@@ -124,43 +129,6 @@ namespace EloDotNet
             }
 
             return _eloCache[(player.Id, matchIndex)];
-        }
-
-        private class PlayerRunningStats
-        {
-            public Guid PlayerId { get; }
-            public int Wins { get; private set; }
-            public int Losses { get; private set; }
-            public int Matches => Wins + Losses;
-            public List<double> OpponentElos { get; private set; }
-            private readonly double _startingElo;
-            private readonly double _advantageRate;
-
-            public PlayerRunningStats(Guid playerId, double startingElo, double advantageRate)
-            {
-                PlayerId = playerId;
-                OpponentElos = new List<double>();
-                _startingElo = startingElo;
-                _advantageRate = advantageRate;
-            }
-
-            public void AddWin(double opponentElo)
-            {
-                Wins++;
-                OpponentElos.Add(opponentElo);
-            }
-
-            public void AddLoss(double opponentElo)
-            {
-                Losses++;
-                OpponentElos.Add(opponentElo);
-            }
-
-            public double CalculateElo()
-            {
-                if (Matches == 0) return _startingElo;
-                return (OpponentElos.Sum() + (_advantageRate * (Wins - Losses))) / Matches;
-            }
         }
     }
 }

@@ -1,15 +1,13 @@
 ﻿using System;
+using EloDotNet.Enums;
+using EloDotNet.Interfaces;
 
 namespace EloDotNet
 {
-    public interface IMatch
-    {
-        Tuple<IPlayer, IPlayer> Players { get; set; }
-        IPlayer Winner { get; set; }
-        IPlayer Loser { get; set; }
-    }
-
-    public class Match
+    /// <summary>
+    /// Default <see cref="IMatch{TPlayer}"/> implementation, whose participants are two <see cref="Player"/> entities.
+    /// </summary>
+    public class Match : IMatch<Player, DateTimeOffset>
     {
         public Player PlayerA { get; }
         public Player PlayerB { get; }
@@ -18,7 +16,7 @@ namespace EloDotNet
         {
             get
             {
-                switch (this.Result)
+                switch (Result)
                 {
                     case MatchWinner.PlayerA:
                         return PlayerA;
@@ -34,7 +32,7 @@ namespace EloDotNet
         {
             get
             {
-                switch (this.Result)
+                switch (Result)
                 {
                     case MatchWinner.PlayerA:
                         return PlayerB;
@@ -47,7 +45,7 @@ namespace EloDotNet
         }
 
         public MatchWinner Result { get; }
-        public DateTimeOffset RecordTime { get; }
+        public DateTimeOffset RecordIndex { get; }
 
         public Match(Player playerA, Player playerB, MatchWinner winner = MatchWinner.Draw)
         {
@@ -63,17 +61,10 @@ namespace EloDotNet
 
             PlayerA = playerA;
             PlayerB = playerB;
-            RecordTime = DateTimeOffset.UtcNow;
+            RecordIndex = DateTimeOffset.UtcNow;
             Result = winner;
         }
 
         public bool IncludesPlayer(Guid playerId) => PlayerA.Id == playerId || PlayerB.Id == playerId;
-    }
-
-    public enum MatchWinner
-    {
-        PlayerA,
-        PlayerB,
-        Draw
     }
 }
