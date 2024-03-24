@@ -7,12 +7,16 @@ using EloDotNet.Enums;
 namespace EloDotNet
 {
     /// <summary>
-    /// Default implementation of <see cref="IRankingSystem{TMatch, TPlayer}"/>, using <see cref="Match"/> to record matches, and <see cref="Player"/> to refer to participants.
+    /// Default generic implementation of <see cref="IRankingSystem{TMatch, TPlayer}"/>, allowing custom implementations for match and player entities.
     /// </summary>
-    public class RankingSystem : IRankingSystem<Match, Player>
+    public class RankingSystem<TMatch, TPlayer, TIndex, TId> : IRankingSystem<TMatch, TPlayer>
+        where TMatch : IMatch<TPlayer, TIndex>, new()
+        where TPlayer : IPlayer<TId>
+        where TIndex : IComparable<TIndex>
+        where TId : IEquatable<TId>
     {
-        public ICollection<Player> Players { get; }
-        public ICollection<Match> Matches { get; }
+        public ICollection<TPlayer> Players { get; }
+        public ICollection<TMatch> Matches { get; }
         public double StartingElo { get; }
         public double KFactor { get; }
 
@@ -23,42 +27,65 @@ namespace EloDotNet
         /// <summary>
         /// Stores the expected Elo of a player after N number of matches in the RankingSystem
         /// </summary>
-        private readonly Dictionary<(Guid, int), double> _eloCache;
+        private readonly Dictionary<(TId, int), double> _eloCache;
 
-        public RankingSystem(double startingElo = 1000, double kFactor = 400)
+        public RankingSystem(double startingElo, double kFactor)
         {
-            Players = new List<Player>();
-            Matches = new List<Match>();
+            Players = new List<TPlayer>();
+            Matches = new List<TMatch>();
 
             StartingElo = startingElo;
             KFactor = kFactor;
-            _eloCache = new Dictionary<(Guid, int), double>();
+            _eloCache = new Dictionary<(TId, int), double>();
         }
 
-        public void RegisterPlayer(Player player)
+        public void RegisterPlayer(TPlayer player)
         {
             Players.Add(player);
             _eloCache[(player.Id, 0)] = StartingElo;
         }
 
-        public void RecordMatch(Player playerA, Player playerB, MatchWinner winner = MatchWinner.Draw)
+        public void RecordMatch(TPlayer playerA, TPlayer playerB, MatchWinner result = MatchWinner.Draw)
         {
-            if (!Players.Any(p => p.Id == playerA.Id))
+            if (!Players.Any(p => p.Id.Equals(playerA.Id)))
                 throw new ArgumentException($"Winning player {playerA.Id} is not in this RankingSystem.");
 
-            if (!Players.Any(p => p.Id == playerB.Id))
+            if (!Players.Any(p => p.Id.Equals(playerB.Id)))
                 throw new ArgumentException($"Losing player {playerB.Id} is not in this RankingSystem.");
 
-            Matches.Add(new Match(playerA, playerB, winner));
+            TPlayer winner = default;
+            TPlayer loser = default;
+
+            switch (result)
+            {
+                case MatchWinner.PlayerA:
+                    winner = playerA;
+                    loser = playerB; 
+                    break;
+
+                case MatchWinner.PlayerB:
+                    winner = playerB;
+                    loser = playerA;
+                    break;
+            }
+
+            TMatch match = new TMatch()
+            {
+                PlayerA = playerA,
+                PlayerB = playerB,
+                Result = result,
+            };
+
+            Matches.Add(match);
         }
 
-        public double CalculateElo(Player player)
+        public double CalculateElo(TPlayer player)
         {
-            if (!Players.Any(p => p.Id == player.Id))
+            if (!Players.Any(p => p.Id.Equals(player.Id)))
                 throw new ArgumentException($"Player {player.Id} is not in this RankingSystem.");
 
             // no matches played = player only has starting Elo
-            if (!Matches.Any(m => m.Winner?.Id == player.Id || m.Loser?.Id == player.Id))
+            if (!Matches.Any(m => (m.Winner?.Id.Equals(player.Id) ?? false) || (m.Loser?.Id.Equals(player.Id) ?? false)))
                 return StartingElo;
 
             if (_eloCache.ContainsKey((player.Id, Matches.Count)))
@@ -119,9 +146,9 @@ namespace EloDotNet
                     // just carry over their previous Elo rating
                     double newElo = _eloCache[(p.Id, prevMatchIndex)];
 
-                    if (p.Id == playerAId)
+                    if (p.Id.Equals(playerAId))
                         newElo += eloChangeA;
-                    else if (p.Id == playerBId)
+                    else if (p.Id.Equals(playerBId))
                         newElo += eloChangeB;
 
                     _eloCache[(p.Id, matchIndex)] = newElo;
@@ -130,5 +157,18 @@ namespace EloDotNet
 
             return _eloCache[(player.Id, matchIndex)];
         }
+    }
+
+    /// <summary>
+    /// Default implementation if <see cref="RankingSystem{TMatch, TPlayer, TIndex, TId}"/>, supporting the default <see cref="Match"/> and <see cref="Player"/> types.
+    /// </summary>
+    public class RankingSystem : RankingSystem<Match, Player, DateTimeOffset, Guid>
+    {
+        /// <summary>
+        /// Initializes a new RankingSystem instance, optionally specifying the starting Elo and k-factor values to use for calculations.
+        /// </summary>
+        /// <param name="startingElo">The starting Elo for a new player in the system. Defaults to 1000.</param>
+        /// <param name="kFactor">The k-factor to use for calculating Elo changes. Defaults to 400.</param>
+        public RankingSystem(double startingElo = 1000, double kFactor = 400) : base(startingElo, kFactor) { }
     }
 }

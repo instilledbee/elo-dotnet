@@ -9,8 +9,8 @@ namespace EloDotNet
     /// </summary>
     public class Match : IMatch<Player, DateTimeOffset>
     {
-        public Player PlayerA { get; }
-        public Player PlayerB { get; }
+        public Player PlayerA { get; set; }
+        public Player PlayerB { get; set; }
 
         public Player Winner
         {
@@ -44,8 +44,10 @@ namespace EloDotNet
             }
         }
 
-        public MatchWinner Result { get; }
-        public DateTimeOffset RecordIndex { get; }
+        public MatchWinner Result { get; set; }
+        public DateTimeOffset RecordIndex { get; set; }
+
+        public Match() { }
 
         public Match(Player playerA, Player playerB, MatchWinner winner = MatchWinner.Draw)
         {

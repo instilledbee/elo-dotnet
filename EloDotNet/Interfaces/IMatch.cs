@@ -24,27 +24,27 @@ namespace EloDotNet.Interfaces
         /// <summary>
         /// The first player.
         /// </summary>
-        TPlayer PlayerA { get; }
+        TPlayer PlayerA { get; set; }
 
         /// <summary>
         /// The second player.
         /// </summary>
-        TPlayer PlayerB { get; }
+        TPlayer PlayerB { get; set; }
 
         /// <summary>
         /// The result of this match
         /// </summary>
-        MatchWinner Result { get; }
+        MatchWinner Result { get; set; }
 
         /// <summary>
-        /// References who won in this match
+        /// Readonly property that references who won in this match, based on the defined <see cref="Result"/>
         /// <para/>
         /// Should return null if the match resulted in a <see cref="MatchWinner.Draw"/>
         /// </summary>
         TPlayer Winner { get; }
 
         /// <summary>
-        /// References who lost in this match
+        /// Readonly property that references who lost in this , based on the defined <see cref="Result"/>
         /// <para/>
         /// Should return null if the match resulted in a <see cref="MatchWinner.Draw"/>
         /// </summary>
@@ -53,6 +53,6 @@ namespace EloDotNet.Interfaces
         /// <summary>
         /// The historical index of this <see cref="IMatch{TPlayer, TIndex}"/>
         /// </summary>
-        TIndex RecordIndex { get; }
+        TIndex RecordIndex { get; set; }
     }
 }
