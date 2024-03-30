@@ -4,6 +4,11 @@ An ELO calculation framework for .NET
 # Getting Started
 The easiest way to get started is to add the [NuGet package](https://www.nuget.org/packages/EloDotNet) to your project.
 
+Releases are also tagged and downloadable from this repository.
+
+# Building
+You may build your own copy of the package from the latest code by pulling from this repository. All of the projects are contained within the solution file (`EloDotNet.sln`).
+
 # Usage
 The package provides the following classes:
 * `Player` - represents a participant in the Elo ranking system. Typically uniquely identified with a `Guid` property.
